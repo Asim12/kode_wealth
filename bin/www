@@ -1,0 +1,140 @@
+#!/usr/bin/env node
+
+/**
+ * Module dependencies.
+ */
+
+var app = require('../app');
+var debug = require('debug')('crypto-stock-application:server');
+var http = require('http');
+var conn =   require("../conn/connection");
+
+
+
+
+/**
+ * Get port from environment and store in Express.
+ */
+
+var port = normalizePort(process.env.PORT || '3000');
+app.set('port', port);
+
+/**
+ * Create HTTP server.
+ */
+
+
+//for socket
+// var server = http.createServer(app);
+// const io = require('socket.io')(server);
+
+  // or 
+          
+var server = http.createServer(app);
+const io = require('socket.io')(server,{
+
+  cors:{
+    origin:"*",
+  }
+});
+
+//end for socket
+
+/**
+ * Listen on provided port, on all network interfaces.
+ */
+
+server.listen(port);
+server.on('error', onError);
+server.on('listening', onListening);
+
+/**
+ * Normalize a port into a number, string, or false.
+ */
+
+function normalizePort(val) {
+  var port = parseInt(val, 10);
+
+  if (isNaN(port)) {
+    // named pipe
+    return val;
+  }
+
+  if (port >= 0) {
+    // port number
+    return port;
+  }
+
+  return false;
+}
+
+/**
+ * Event listener for HTTP server "error" event.
+ */
+
+function onError(error) {
+  if (error.syscall !== 'listen') {
+    throw error;
+  }
+
+  var bind = typeof port === 'string'
+    ? 'Pipe ' + port
+    : 'Port ' + port;
+
+  // handle specific listen errors with friendly messages
+  switch (error.code) {
+    case 'EACCES':
+      console.error(bind + ' requires elevated privileges');
+      process.exit(1);
+      break;
+    case 'EADDRINUSE':
+      console.error(bind + ' is already in use');
+      process.exit(1);
+      break;
+    default:
+      throw error;
+  }
+}
+
+/**
+ * Event listener for HTTP server "listening" event.
+ */
+
+function onListening() {
+  console.log("listeneing on port............"+JSON.stringify(server.address()))
+  var addr = server.address();
+  var bind = typeof addr === 'string'
+    ? 'pipe ' + addr
+    : 'port ' + addr.port;
+  debug('Listening on ' + bind);
+}
+
+//Whenever someone connects this gets executed  socket
+// const connections = []; 
+io.on('connection', async function(socket) {
+  console.log('A user connected with socket');
+
+  socket.on("coin_market_price",async doc => {
+    console.log('Tag Received')
+    let db = await conn 
+    let prices = await db.collection('market_prices').find({}).toArray()
+    socket.emit("coin_market_price", {success: true, message:'Market Price Array', data: prices});
+  });
+
+
+  //2nd socket for percentage change
+  socket.on("24Hchange",async doc => {
+    console.log('Tag Received for change')
+    let db = await conn 
+    let prices = await db.collection('preDayChange').find({}).toArray()
+    socket.emit("24Hchange", {success: true, message:'24H change array', data: prices});
+  });
+
+
+  // Whenever someone disconnects this piece of code executed
+  socket.on('disconnect', function () {
+    console.log('A user disconnected with socket');
+  });
+
+});
+//end socket
